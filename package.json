@@ -1,0 +1,25 @@
+{
+  "name": "task-management-mern",
+  "version": "1.0.0",
+  "description": "Full-Stack Task Management Website using MERN Stack with TypeScript",
+  "main": "server/src/server.ts",
+  "scripts": {
+    "install:all": "npm install && npm run install:server && npm run install:client",
+    "install:server": "npm --prefix server install",
+    "install:client": "npm --prefix client install",
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,magenta\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "start": "npm --prefix server run start",
+    "test": "npm --prefix server run test",
+    "lint": "npm --prefix client run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "author": "",
+  "license": "MIT"
+}

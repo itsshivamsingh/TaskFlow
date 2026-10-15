@@ -1,0 +1,40 @@
+import jwt from 'jsonwebtoken';
+import { Response, CookieOptions } from 'express';
+import { ENV } from '../config/env';
+
+export interface TokenPayload {
+  userId: string;
+  email: string;
+}
+
+export const signToken = (payload: TokenPayload): string => {
+  return jwt.sign(payload, ENV.JWT_SECRET, {
+    expiresIn: ENV.JWT_EXPIRES_IN as any,
+  });
+};
+
+export const verifyToken = (token: string): TokenPayload => {
+  return jwt.verify(token, ENV.JWT_SECRET) as TokenPayload;
+};
+
+export const getCookieOptions = (): CookieOptions => {
+  const isProduction = ENV.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'strict' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
+    path: '/',
+  };
+};
+
+export const setAuthCookie = (res: Response, token: string): void => {
+  res.cookie(ENV.COOKIE_NAME, token, getCookieOptions());
+};
+
+export const clearAuthCookie = (res: Response): void => {
+  res.clearCookie(ENV.COOKIE_NAME, {
+    ...getCookieOptions(),
+    maxAge: 0,
+  });
+};
