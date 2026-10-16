@@ -2,15 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 
 export const requireDatabaseConnection = (
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): void => {
-  // Allow health check and root endpoints even when database is disconnected
-  if (req.path === '/health' || req.path === '/' || req.path === '') {
-    return next();
-  }
-
   // If MongoDB is not connected (readyState 1 = connected)
   if (mongoose.connection.readyState !== 1) {
     res.status(503).json({

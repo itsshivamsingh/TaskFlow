@@ -6,12 +6,14 @@ import {
   deleteAccount,
 } from '../controllers/userController';
 import { requireAuth } from '../middleware/authMiddleware';
+import { requireDatabaseConnection } from '../middleware/dbCheckMiddleware';
 import { validateBody } from '../middleware/validateMiddleware';
 import { updateProfileSchema, updatePasswordSchema } from '../validators/userValidators';
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(requireDatabaseConnection);
 
 router.get('/me', getProfile);
 router.patch('/me', validateBody(updateProfileSchema), updateProfile);

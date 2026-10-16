@@ -26,7 +26,7 @@ import {
 import { toast } from 'sonner';
 
 export const DashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
@@ -49,11 +49,16 @@ export const DashboardPage: React.FC = () => {
       setData(statsRes.data);
       setProductivity(prodRes.data);
     } catch (err: any) {
-      toast.error('Failed to load dashboard metrics');
+      if (err.status === 401) {
+        toast.error('Your session has expired. Please sign in again.');
+        logout();
+      } else {
+        toast.error(err.message || 'Failed to load dashboard metrics');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
     fetchDashboardData();

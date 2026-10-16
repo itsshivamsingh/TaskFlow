@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User } from '../types';
 import { authService } from '../services/authService';
+import { TOKEN_STORAGE_KEY } from '../services/api';
 
 export interface AuthContextType {
   user: User | null;
@@ -30,9 +31,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.success && res.user) {
         setUser(res.user);
       } else {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
         setUser(null);
       }
     } catch {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
       setUser(null);
     } finally {
       setLoading(false);
@@ -45,6 +48,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (data: { email: string; password: string }) => {
     const res = await authService.login(data);
+    if (res.token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, res.token);
+    }
     if (res.success && res.user) {
       setUser(res.user);
     }
@@ -57,6 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     confirmPassword: string;
   }) => {
     const res = await authService.register(data);
+    if (res.token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, res.token);
+    }
     if (res.success && res.user) {
       setUser(res.user);
     }
@@ -66,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authService.logout();
     } finally {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
       setUser(null);
     }
   };

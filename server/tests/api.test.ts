@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app';
 import bcrypt from 'bcryptjs';
-import { signToken, verifyToken } from '../src/utils/jwt';
+import { signToken, verifyToken, getCookieOptions } from '../src/utils/jwt';
 import { registerSchema, loginSchema } from '../src/validators/authValidators';
 import { createTaskSchema } from '../src/validators/taskValidators';
+import { ENV } from '../src/config/env';
 
 describe('TaskFlow API & Security Test Suite', () => {
   const app = createApp();
@@ -28,6 +29,33 @@ describe('TaskFlow API & Security Test Suite', () => {
       const decoded = verifyToken(token);
       expect(decoded.userId).toBe(payload.userId);
       expect(decoded.email).toBe(payload.email);
+    });
+
+    it('should return secure cross-site cookie options in production', () => {
+      const originalEnv = ENV.NODE_ENV;
+      try {
+        (ENV as any).NODE_ENV = 'production';
+        const prodOptions = getCookieOptions();
+        expect(prodOptions.httpOnly).toBe(true);
+        expect(prodOptions.secure).toBe(true);
+        expect(prodOptions.sameSite).toBe('none');
+        expect(prodOptions.path).toBe('/');
+      } finally {
+        (ENV as any).NODE_ENV = originalEnv;
+      }
+    });
+
+    it('should return lax cookie options in development', () => {
+      const originalEnv = ENV.NODE_ENV;
+      try {
+        (ENV as any).NODE_ENV = 'development';
+        const devOptions = getCookieOptions();
+        expect(devOptions.httpOnly).toBe(true);
+        expect(devOptions.secure).toBe(false);
+        expect(devOptions.sameSite).toBe('lax');
+      } finally {
+        (ENV as any).NODE_ENV = originalEnv;
+      }
     });
   });
 
@@ -59,6 +87,20 @@ describe('TaskFlow API & Security Test Suite', () => {
         confirmPassword: 'Password123',
       });
       expect(validResult.success).toBe(true);
+    });
+
+    it('should validate login credentials', () => {
+      const invalidEmail = loginSchema.safeParse({
+        email: 'not-an-email',
+        password: 'Password123!',
+      });
+      expect(invalidEmail.success).toBe(false);
+
+      const validLogin = loginSchema.safeParse({
+        email: 'user@example.com',
+        password: 'Password123!',
+      });
+      expect(validLogin.success).toBe(true);
     });
 
     it('should validate task creation fields', () => {
@@ -100,6 +142,12 @@ describe('TaskFlow API & Security Test Suite', () => {
       expect(res.body.success).toBe(false);
     });
 
+    it('GET /api/dashboard/productivity without auth should return 401 Unauthorized', async () => {
+      const res = await request(app).get('/api/dashboard/productivity');
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+    });
+
     it('GET /api/users/me without auth should return 401 Unauthorized', async () => {
       const res = await request(app).get('/api/users/me');
       expect(res.status).toBe(401);
@@ -110,9 +158,74 @@ describe('TaskFlow API & Security Test Suite', () => {
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
     });
+
+    it('POST /api/auth/logout should return 200 and clear cookie', async () => {
+      const res = await request(app).post('/api/auth/logout');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
   });
 
-  describe('Invalid ID and Route handling', () => {
+  describe('Bearer Token & Cookie Authentication Handling', () => {
+    it('should reject invalid Bearer token with 401', async () => {
+      const res = await request(app)
+        .get('/api/dashboard/stats')
+        .set('Authorization', 'Bearer invalid-token-string');
+      expect(res.status).toBe(401);
+      expect(res.body.message).toContain('Invalid or expired');
+    });
+
+    it('should reject invalid cookie token with 401', async () => {
+      const res = await request(app)
+        .get('/api/dashboard/stats')
+        .set('Cookie', [`${ENV.COOKIE_NAME}=invalid-token-string`]);
+      expect(res.status).toBe(401);
+      expect(res.body.message).toContain('Invalid or expired');
+    });
+
+    it('should allow valid Bearer token to pass authentication middleware', async () => {
+      const validToken = signToken({
+        userId: '507f1f77bcf86cd799439011',
+        email: 'auth_test@example.com',
+      });
+
+      // When valid token is provided, requireAuth succeeds.
+      // Next middleware is requireDatabaseConnection. Since DB is offline during tests, it returns 503 instead of 401!
+      const res = await request(app)
+        .get('/api/dashboard/stats')
+        .set('Authorization', `Bearer ${validToken}`);
+
+      // Crucially, it did NOT return 401! It successfully passed auth!
+      expect(res.status).not.toBe(401);
+    });
+
+    it('should allow valid Cookie token to pass authentication middleware', async () => {
+      const validToken = signToken({
+        userId: '507f1f77bcf86cd799439011',
+        email: 'auth_test@example.com',
+      });
+
+      const res = await request(app)
+        .get('/api/dashboard/stats')
+        .set('Cookie', [`${ENV.COOKIE_NAME}=${validToken}`]);
+
+      // Crucially, it did NOT return 401! It successfully passed auth!
+      expect(res.status).not.toBe(401);
+    });
+  });
+
+  describe('CORS and Route handling', () => {
+    it('should allow production Vercel origin with CORS credentials', async () => {
+      const res = await request(app)
+        .get('/api/health')
+        .set('Origin', 'https://task-flow-wine-iota-25.vercel.app');
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe(
+        'https://task-flow-wine-iota-25.vercel.app'
+      );
+      expect(res.headers['access-control-allow-credentials']).toBe('true');
+    });
+
     it('should return 404 for nonexistent API routes', async () => {
       const res = await request(app).get('/api/nonexistent-route-xyz');
       expect(res.status).toBe(404);

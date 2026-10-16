@@ -8,6 +8,7 @@ import {
   updateTaskStatus,
 } from '../controllers/taskController';
 import { requireAuth } from '../middleware/authMiddleware';
+import { requireDatabaseConnection } from '../middleware/dbCheckMiddleware';
 import { validateBody, validateQuery } from '../middleware/validateMiddleware';
 import {
   createTaskSchema,
@@ -19,6 +20,7 @@ import {
 const router = Router();
 
 router.use(requireAuth);
+router.use(requireDatabaseConnection);
 
 router.get('/', validateQuery(taskQuerySchema), getTasks);
 router.post('/', validateBody(createTaskSchema), createTask);

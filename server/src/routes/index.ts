@@ -5,7 +5,6 @@ import taskRoutes from './taskRoutes';
 import dashboardRoutes from './dashboardRoutes';
 import categoryRoutes from './categoryRoutes';
 import mongoose from 'mongoose';
-import { requireDatabaseConnection } from '../middleware/dbCheckMiddleware';
 
 const router = Router();
 
@@ -23,11 +22,11 @@ router.get('/health', (_req, res) => {
   });
 });
 
-// Protect database routes from buffering hangs when database is offline
-router.use('/auth', requireDatabaseConnection, authRoutes);
-router.use('/users', requireDatabaseConnection, userRoutes);
-router.use('/tasks', requireDatabaseConnection, taskRoutes);
-router.use('/dashboard', requireDatabaseConnection, dashboardRoutes);
-router.use('/categories', requireDatabaseConnection, categoryRoutes);
+// Mount sub-routers (database check is applied per route after auth and validation)
+router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
+router.use('/tasks', taskRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/categories', categoryRoutes);
 
 export default router;

@@ -5,10 +5,12 @@ import {
   deleteCategory,
 } from '../controllers/categoryController';
 import { requireAuth } from '../middleware/authMiddleware';
+import { requireDatabaseConnection } from '../middleware/dbCheckMiddleware';
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(requireDatabaseConnection);
 
 router.get('/', getCategories);
 router.post('/', createCategory);

@@ -10,6 +10,9 @@ import { apiLimiter } from './middleware/rateLimiter';
 export const createApp = (): Application => {
   const app = express();
 
+  // Trust reverse proxy (e.g. Render) for HTTPS detection and secure cookies
+  app.set('trust proxy', 1);
+
   // Security headers
   app.use(
     helmet({
@@ -25,13 +28,20 @@ export const createApp = (): Application => {
         // Allow requests with no origin (like mobile apps, curl, or server-to-server)
         if (!origin) return callback(null, true);
 
+        const normalize = (url: string) => url.trim().replace(/\/+$/, '');
         const allowedOrigins = [
-          ENV.CLIENT_URL,
+          normalize(ENV.CLIENT_URL),
+          'https://task-flow-wine-iota-25.vercel.app',
           'http://localhost:5173',
           'http://127.0.0.1:5173',
         ];
 
-        if (allowedOrigins.includes(origin) || ENV.NODE_ENV !== 'production') {
+        const normOrigin = normalize(origin);
+        if (
+          allowedOrigins.includes(normOrigin) ||
+          ENV.NODE_ENV !== 'production' ||
+          /^https:\/\/task-flow.*\.vercel\.app$/.test(normOrigin)
+        ) {
           return callback(null, true);
         }
         return callback(new Error(`Origin ${origin} not allowed by CORS`));
